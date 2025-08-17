@@ -29,6 +29,14 @@ async function main(runtime: NodeRuntime) {
   // Validate Claude CLI availability and get the detected CLI path
   const cliPath = await validateClaudeCli(runtime, args.claudePath);
 
+  // Check if authentication is enabled
+  const authEnabled = !!(args.authUsername && args.authPassword);
+  if (authEnabled) {
+    logger.cli.info("🔐 Authentication enabled");
+  } else {
+    logger.cli.info("⚠️ Authentication disabled - no AUTH_USERNAME or AUTH_PASSWORD set");
+  }
+
   // Use absolute path for static files (supported in @hono/node-server v1.17.0+)
   // Node.js 20.11.0+ compatible with fallback for older versions
   const __dirname =
@@ -40,6 +48,9 @@ async function main(runtime: NodeRuntime) {
     debugMode: args.debug,
     staticPath,
     cliPath,
+    authEnabled,
+    authUsername: args.authUsername,
+    authPassword: args.authPassword,
   });
 
   // Start server (only show this message when everything is ready)

@@ -11,6 +11,7 @@ import { useAbortController } from "../hooks/chat/useAbortController";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { ThemeToggle } from "./chat/ThemeToggle";
 import { HistoryButton } from "./chat/HistoryButton";
+import { LogoutButton } from "./chat/LogoutButton";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
 import { HistoryView } from "./HistoryView";
@@ -495,6 +496,7 @@ export function ChatPage() {
           <div className="flex items-center gap-3">
             {!isHistoryView && <HistoryButton onClick={handleHistoryClick} />}
             <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <LogoutButton />
           </div>
         </div>
 

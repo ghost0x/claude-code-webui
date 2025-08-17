@@ -17,6 +17,12 @@ import { handleHistoriesRequest } from "./handlers/histories.ts";
 import { handleConversationRequest } from "./handlers/conversations.ts";
 import { handleChatRequest } from "./handlers/chat.ts";
 import { handleAbortRequest } from "./handlers/abort.ts";
+import { 
+  handleLoginRequest, 
+  handleLogoutRequest, 
+  handleAuthStatusRequest 
+} from "./handlers/auth.ts";
+import { createAuthMiddleware } from "./middleware/auth.ts";
 import { logger } from "./utils/logger.ts";
 import { readBinaryFile } from "./utils/fs.ts";
 
@@ -24,6 +30,9 @@ export interface AppConfig {
   debugMode: boolean;
   staticPath: string;
   cliPath: string; // Actual CLI script path detected by validateClaudeCli
+  authEnabled: boolean;
+  authUsername?: string;
+  authPassword?: string;
 }
 
 export function createApp(
@@ -42,6 +51,7 @@ export function createApp(
       origin: "*",
       allowMethods: ["GET", "POST", "OPTIONS"],
       allowHeaders: ["Content-Type"],
+      credentials: true, // Allow cookies for authentication
     }),
   );
 
@@ -52,8 +62,19 @@ export function createApp(
       debugMode: config.debugMode,
       runtime,
       cliPath: config.cliPath,
+      authEnabled: config.authEnabled,
+      authUsername: config.authUsername,
+      authPassword: config.authPassword,
     }),
   );
+
+  // Authentication endpoints (must come before auth middleware)
+  app.post("/api/auth/login", (c) => handleLoginRequest(c));
+  app.post("/api/auth/logout", (c) => handleLogoutRequest(c));
+  app.get("/api/auth/status", (c) => handleAuthStatusRequest(c));
+
+  // Authentication middleware - protects all other API routes
+  app.use("/api/*", createAuthMiddleware());
 
   // API routes
   app.get("/api/projects", (c) => handleProjectsRequest(c));

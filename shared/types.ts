@@ -51,3 +51,19 @@ export interface ConversationHistory {
     messageCount: number;
   };
 }
+
+// Authentication types
+export interface AuthRequest {
+  username: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  error?: string;
+}
+
+export interface AuthStatusResponse {
+  authenticated: boolean;
+  authEnabled: boolean;
+}

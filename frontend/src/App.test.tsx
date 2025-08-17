@@ -4,6 +4,7 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { ProjectSelector } from "./components/ProjectSelector";
 import { ChatPage } from "./components/ChatPage";
 import { EnterBehaviorProvider } from "./contexts/EnterBehaviorContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -12,9 +13,17 @@ describe("App Routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock projects API response
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ projects: [] }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url) => {
+      if (url.includes('/api/auth/status')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ authenticated: true, authEnabled: false }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ projects: [] }),
+      });
     });
   });
 
@@ -35,13 +44,15 @@ describe("App Routing", () => {
   it("renders chat page when navigating to projects path", async () => {
     await act(async () => {
       render(
-        <EnterBehaviorProvider>
-          <MemoryRouter initialEntries={["/projects/test-path"]}>
-            <Routes>
-              <Route path="/projects/*" element={<ChatPage />} />
-            </Routes>
-          </MemoryRouter>
-        </EnterBehaviorProvider>,
+        <AuthProvider>
+          <EnterBehaviorProvider>
+            <MemoryRouter initialEntries={["/projects/test-path"]}>
+              <Routes>
+                <Route path="/projects/*" element={<ChatPage />} />
+              </Routes>
+            </MemoryRouter>
+          </EnterBehaviorProvider>
+        </AuthProvider>,
       );
     });
 

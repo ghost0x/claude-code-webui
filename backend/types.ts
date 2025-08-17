@@ -9,5 +9,8 @@ export interface AppConfig {
   debugMode: boolean;
   runtime: Runtime;
   cliPath: string; // Path to actual CLI script detected by validateClaudeCli
+  authEnabled: boolean;
+  authUsername?: string;
+  authPassword?: string;
   // Future configuration options can be added here
 }

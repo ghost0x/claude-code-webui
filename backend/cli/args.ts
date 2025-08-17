@@ -13,6 +13,8 @@ export interface ParsedArgs {
   port: number;
   host: string;
   claudePath?: string;
+  authUsername?: string;
+  authPassword?: string;
 }
 
 export function parseCliArgs(): ParsedArgs {
@@ -58,10 +60,16 @@ export function parseCliArgs(): ParsedArgs {
   const debugEnv = getEnv("DEBUG");
   const debugFromEnv = debugEnv?.toLowerCase() === "true" || debugEnv === "1";
 
+  // Get authentication credentials from environment variables
+  const authUsername = getEnv("AUTH_USERNAME");
+  const authPassword = getEnv("AUTH_PASSWORD");
+
   return {
     debug: options.debug || debugFromEnv,
     port: options.port,
     host: options.host,
     claudePath: options.claudePath,
+    authUsername,
+    authPassword,
   };
 }

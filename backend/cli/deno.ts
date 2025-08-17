@@ -27,6 +27,14 @@ async function main(runtime: DenoRuntime) {
   // Validate Claude CLI availability and get the detected CLI path
   const cliPath = await validateClaudeCli(runtime, args.claudePath);
 
+  // Check if authentication is enabled
+  const authEnabled = !!(args.authUsername && args.authPassword);
+  if (authEnabled) {
+    logger.cli.info("🔐 Authentication enabled");
+  } else {
+    logger.cli.info("⚠️ Authentication disabled - no AUTH_USERNAME or AUTH_PASSWORD set");
+  }
+
   // Create application
   const __dirname = dirname(fromFileUrl(import.meta.url));
   const staticPath = join(__dirname, "../dist/static");
@@ -35,6 +43,9 @@ async function main(runtime: DenoRuntime) {
     debugMode: args.debug,
     staticPath,
     cliPath: cliPath,
+    authEnabled,
+    authUsername: args.authUsername,
+    authPassword: args.authPassword,
   });
 
   // Start server (only show this message when everything is ready)
