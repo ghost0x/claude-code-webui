@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { setCookie, deleteCookie } from "hono/cookie";
+import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import type { ConfigContext } from "../middleware/config.ts";
 import { validateCredentials, generateSessionToken } from "../middleware/auth.ts";
 import type { AuthRequest, AuthResponse, AuthStatusResponse } from "../../shared/types.ts";
@@ -90,13 +90,17 @@ export async function handleAuthStatusRequest(c: Context<ConfigContext>): Promis
   }
 
   // Check if user has valid session
-  const sessionCookie = c.req.header("Cookie");
-  const hasValidSession = sessionCookie?.includes("auth-session=");
+  const sessionToken = getCookie(c, "auth-session");
+  let hasValidSession = false;
   
-  // For a more secure check, you'd validate the token here
-  // But for simplicity, we just check if the cookie exists
+  if (sessionToken) {
+    // Validate the session token
+    const expectedToken = generateSessionToken(config.authUsername || "");
+    hasValidSession = sessionToken === expectedToken;
+  }
+  
   const response: AuthStatusResponse = { 
-    authenticated: !!hasValidSession, 
+    authenticated: hasValidSession, 
     authEnabled: true 
   };
   return c.json(response);
