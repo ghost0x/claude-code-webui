@@ -108,6 +108,23 @@ chmod +x claude-code-webui-macos-arm64
 # Open browser to http://localhost:8080
 ```
 
+### 🔐 Quick Start with Authentication
+
+```bash
+# Install globally via npm
+npm install -g claude-code-webui
+
+# Create .env file with credentials
+echo "AUTH_USERNAME=admin" > .env
+echo "AUTH_PASSWORD=your-secure-password" >> .env
+
+# Start with authentication enabled
+claude-code-webui
+
+# Open browser - you'll see a login page
+# Login with: admin / your-secure-password
+```
+
 ### Option 3: Development Mode
 
 ```bash
@@ -147,11 +164,13 @@ The backend server supports the following command-line options:
 
 - `PORT` - Same as `--port`
 - `DEBUG` - Same as `--debug`
+- `AUTH_USERNAME` - Username for basic authentication (enables auth when set with AUTH_PASSWORD)
+- `AUTH_PASSWORD` - Password for basic authentication (enables auth when set with AUTH_USERNAME)
 
 ### Examples
 
 ```bash
-# Default (localhost:8080)
+# Default (localhost:8080, no authentication)
 claude-code-webui
 
 # Custom port
@@ -159,6 +178,11 @@ claude-code-webui --port 3000
 
 # Bind to all interfaces (accessible from network)
 claude-code-webui --host 0.0.0.0 --port 9000
+
+# Enable authentication
+export AUTH_USERNAME=admin
+export AUTH_PASSWORD=securepass123
+claude-code-webui
 
 # Enable debug mode
 claude-code-webui --debug
@@ -168,6 +192,11 @@ claude-code-webui --claude-path /path/to/claude
 
 # Using environment variables
 PORT=9000 DEBUG=true claude-code-webui
+
+# Complete production setup with authentication
+export AUTH_USERNAME=admin
+export AUTH_PASSWORD=your-secure-password
+PORT=8080 claude-code-webui --host 0.0.0.0
 ```
 
 ---
@@ -267,28 +296,69 @@ PORT=9000 npm run dev       # Node.js
 
 **Important**: This tool executes Claude CLI locally and provides web access to it.
 
+### 🔐 Authentication (New!)
+
+Claude Code Web UI now supports **optional basic authentication** to protect your interface:
+
+```bash
+# Set authentication credentials
+export AUTH_USERNAME=your_username
+export AUTH_PASSWORD=your_secure_password
+
+# Start with authentication enabled
+claude-code-webui
+```
+
+**Authentication Features:**
+- **🔒 Secure login** - Username/password form with session management
+- **🍪 HTTP-only cookies** - Secure session tokens with 24-hour expiry  
+- **⚡ Zero-config** - Automatically enabled when credentials are set
+- **🔄 Backwards compatible** - Disabled by default, no breaking changes
+
+<details>
+<summary><strong>📸 Authentication Screenshots</strong></summary>
+
+<div align="center">
+
+| Login Page                                                                                        | Authenticated Interface                                                                                    |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| <img src="docs/images/auth/login-page.png" alt="Authentication Login" width="400">               | <img src="docs/images/auth/authenticated-main-page.png" alt="Authenticated Main Page" width="400">       |
+| _Secure login form with theme support_                                                           | _Main interface with logout button (top right)_                                                          |
+
+</div>
+
+</details>
+
 ### ✅ Safe Usage Patterns
 
 - **🏠 Local development**: Default localhost access
-- **📱 Personal network**: LAN access from your own devices
+- **📱 Personal network**: LAN access from your own devices  
+- **🔐 Protected public access**: Enable authentication for broader network exposure
 
 ### ⚠️ Security Notes
 
-- **No authentication**: Currently no built-in auth mechanism
-- **System access**: Claude can read/write files in selected projects
-- **Network exposure**: Configurable but requires careful consideration
+- **🔐 Optional authentication**: Enable with AUTH_USERNAME and AUTH_PASSWORD
+- **💻 System access**: Claude can read/write files in selected projects
+- **🌐 Network exposure**: Configurable but requires careful consideration
 
 ### 🛡️ Best Practices
 
 ```bash
-# Local only (recommended)
+# Local only (most secure)
 claude-code-webui --port 8080
 
-# Network access (trusted networks only)
-claude-code-webui --port 8080 --host 0.0.0.0
+# With authentication (recommended for network access)
+export AUTH_USERNAME=admin
+export AUTH_PASSWORD=your-secure-password-here
+claude-code-webui --host 0.0.0.0 --port 8080
+
+# .env file approach (recommended)
+echo "AUTH_USERNAME=admin" >> .env
+echo "AUTH_PASSWORD=your-secure-password-here" >> .env
+claude-code-webui --host 0.0.0.0 --port 8080
 ```
 
-**Never expose to public internet without proper security measures.**
+**⚠️ Important:** Use strong passwords and HTTPS in production environments.
 
 ---
 
@@ -326,9 +396,40 @@ Yes, everything runs locally. No data is sent to external servers except Claude'
 </details>
 
 <details>
+<summary><strong>Q: How do I enable authentication?</strong></summary>
+
+Set `AUTH_USERNAME` and `AUTH_PASSWORD` environment variables:
+
+```bash
+export AUTH_USERNAME=admin
+export AUTH_PASSWORD=your-secure-password
+claude-code-webui
+```
+
+Or use a `.env` file:
+```bash
+echo "AUTH_USERNAME=admin" > .env
+echo "AUTH_PASSWORD=your-secure-password" >> .env
+claude-code-webui
+```
+
+When authentication is enabled, users must login before accessing the interface.
+
+</details>
+
+<details>
 <summary><strong>Q: Can I deploy this to a server?</strong></summary>
 
-While technically possible, it's designed for local use. If deploying remotely, ensure proper authentication and security measures.
+Yes! With authentication enabled, you can safely deploy to servers:
+
+```bash
+# Secure server deployment
+export AUTH_USERNAME=admin
+export AUTH_PASSWORD=your-secure-password
+claude-code-webui --host 0.0.0.0 --port 8080
+```
+
+**⚠️ Important:** Use strong passwords and consider HTTPS for production deployments.
 
 </details>
 
