@@ -27,8 +27,13 @@ describe("useClaudeStreaming", () => {
       tools: ["Bash"],
       mcp_servers: [],
       model: "claude-3-sonnet",
-      permissionMode: "default" as const,
+      permissionMode: "acceptEdits" as const,
       slash_commands: [],
+      claude_code_version: "1.0.0",
+      output_style: "default",
+      skills: [],
+      plugins: [],
+      uuid: "00000000-0000-0000-0000-000000000001" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -79,6 +84,7 @@ describe("useClaudeStreaming", () => {
       },
       parent_tool_use_id: null,
       session_id: "test-session-456",
+      uuid: "00000000-0000-0000-0000-000000000002" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -118,6 +124,7 @@ describe("useClaudeStreaming", () => {
       },
       parent_tool_use_id: null,
       session_id: "test-session-456",
+      uuid: "00000000-0000-0000-0000-000000000003" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -153,8 +160,15 @@ describe("useClaudeStreaming", () => {
       result: "Task completed",
       session_id: "test-session-789",
       total_cost_usd: 0.001,
-      usage: { input_tokens: 10, output_tokens: 5 },
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5,
+        cache_creation_input_tokens: 0,
+        cache_read_input_tokens: 0,
+      },
       permission_denials: [],
+      modelUsage: {},
+      uuid: "00000000-0000-0000-0000-000000000004" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -190,8 +204,13 @@ describe("useClaudeStreaming", () => {
       tools: ["Bash"],
       mcp_servers: [],
       model: "claude-3-sonnet",
-      permissionMode: "default" as const,
+      permissionMode: "acceptEdits" as const,
       slash_commands: [],
+      claude_code_version: "1.0.0",
+      output_style: "default",
+      skills: [],
+      plugins: [],
+      uuid: "00000000-0000-0000-0000-000000000005" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -236,6 +255,7 @@ describe("useClaudeStreaming", () => {
       },
       parent_tool_use_id: null,
       session_id: "test-session-123",
+      uuid: "00000000-0000-0000-0000-000000000006" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({
@@ -329,6 +349,7 @@ describe("useClaudeStreaming", () => {
       },
       parent_tool_use_id: null,
       session_id: "test-session-123",
+      uuid: "00000000-0000-0000-0000-000000000007" as `${string}-${string}-${string}-${string}-${string}`,
     };
 
     const streamLine = JSON.stringify({

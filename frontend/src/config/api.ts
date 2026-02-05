@@ -3,6 +3,7 @@ export const API_CONFIG = {
   ENDPOINTS: {
     CHAT: "/api/chat",
     ABORT: "/api/abort",
+    ANSWER: "/api/answer",
     PROJECTS: "/api/projects",
     HISTORIES: "/api/projects",
     CONVERSATIONS: "/api/projects",
@@ -17,6 +18,11 @@ export const getApiUrl = (endpoint: string) => {
 // Helper function to get abort URL
 export const getAbortUrl = (requestId: string) => {
   return `${API_CONFIG.ENDPOINTS.ABORT}/${requestId}`;
+};
+
+// Helper function to get answer URL (for user question responses)
+export const getAnswerUrl = (requestId: string) => {
+  return `${API_CONFIG.ENDPOINTS.ANSWER}/${requestId}`;
 };
 
 // Helper function to get chat URL

@@ -3,8 +3,11 @@ import { StopIcon } from "@heroicons/react/24/solid";
 import { UI_CONSTANTS, KEYBOARD_SHORTCUTS } from "../../utils/constants";
 import { useEnterBehavior } from "../../hooks/useEnterBehavior";
 import { EnterModeMenu } from "./EnterModeMenu";
+import { PermissionModeMenu } from "./PermissionModeMenu";
 import { PermissionInputPanel } from "./PermissionInputPanel";
 import { PlanPermissionInputPanel } from "./PlanPermissionInputPanel";
+import { UserQuestionInputPanel } from "./UserQuestionInputPanel";
+import type { UserQuestion } from "../../types";
 
 interface PermissionData {
   patterns: string[];
@@ -37,6 +40,12 @@ interface PlanPermissionData {
     | null;
 }
 
+interface UserQuestionData {
+  questions: UserQuestion[];
+  onSubmit: (answers: Record<string, string | string[]>) => void;
+  onDismiss: () => void;
+}
+
 interface ChatInputProps {
   input: string;
   isLoading: boolean;
@@ -48,6 +57,11 @@ interface ChatInputProps {
   showPermissions?: boolean;
   permissionData?: PermissionData;
   planPermissionData?: PlanPermissionData;
+  // User question props
+  userQuestionData?: UserQuestionData;
+  // Permission mode state
+  permissionMode?: "plan" | "acceptEdits";
+  onPermissionModeChange?: (mode: "plan" | "acceptEdits") => void;
 }
 
 export function ChatInput({
@@ -60,6 +74,9 @@ export function ChatInput({
   showPermissions = false,
   permissionData,
   planPermissionData,
+  userQuestionData,
+  permissionMode,
+  onPermissionModeChange,
 }: ChatInputProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -160,6 +177,17 @@ export function ChatInput({
     );
   }
 
+  // If we have a user question, show the question panel instead
+  if (userQuestionData) {
+    return (
+      <UserQuestionInputPanel
+        questions={userQuestionData.questions}
+        onSubmit={userQuestionData.onSubmit}
+        onDismiss={userQuestionData.onDismiss}
+      />
+    );
+  }
+
   return (
     <div className="flex-shrink-0">
       <form onSubmit={handleSubmit} className="relative">
@@ -188,6 +216,10 @@ export function ChatInput({
               <StopIcon className="w-4 h-4" />
             </button>
           )}
+          <PermissionModeMenu
+            permissionMode={permissionMode}
+            onPermissionModeChange={onPermissionModeChange}
+          />
           <EnterModeMenu />
           <button
             type="submit"

@@ -3,8 +3,9 @@ import type {
   SDKAssistantMessage,
   SDKSystemMessage,
   SDKResultMessage,
+  SDKMessage,
   PermissionMode as SDKPermissionMode,
-} from "@anthropic-ai/claude-code";
+} from "@anthropic-ai/claude-agent-sdk";
 
 // Chat message for user/assistant interactions (not part of SDKMessage)
 export interface ChatMessage {
@@ -30,9 +31,12 @@ export type AbortMessage = {
   timestamp: number;
 };
 
+// Extract all system-type messages from SDKMessage
+type SDKSystemTypeMessage = Extract<SDKMessage, { type: "system" }>;
+
 // System message extending SDK types with timestamp
 export type SystemMessage = (
-  | SDKSystemMessage
+  | SDKSystemTypeMessage
   | SDKResultMessage
   | ErrorMessage
   | AbortMessage
@@ -71,6 +75,28 @@ export interface PlanMessage {
   timestamp: number;
 }
 
+// User question option type
+export interface UserQuestionOption {
+  label: string;
+  description: string;
+}
+
+// User question type (from AskUserQuestion tool)
+export interface UserQuestion {
+  question: string;
+  header: string; // max 12 chars
+  options: UserQuestionOption[];
+  multiSelect: boolean;
+}
+
+// User question message type for UI display
+export interface UserQuestionMessage {
+  type: "user_question";
+  toolUseId: string;
+  questions: UserQuestion[];
+  timestamp: number;
+}
+
 // TimestampedSDKMessage types for conversation history API
 // These extend Claude SDK types with timestamp information
 type WithTimestamp<T> = T & { timestamp: string };
@@ -91,7 +117,8 @@ export type AllMessage =
   | SystemMessage
   | ToolMessage
   | ToolResultMessage
-  | PlanMessage;
+  | PlanMessage
+  | UserQuestionMessage;
 
 // Type guard functions
 export function isChatMessage(message: AllMessage): message is ChatMessage {
@@ -120,8 +147,15 @@ export function isPlanMessage(message: AllMessage): message is PlanMessage {
   return message.type === "plan";
 }
 
+export function isUserQuestionMessage(
+  message: AllMessage,
+): message is UserQuestionMessage {
+  return message.type === "user_question";
+}
+
 // Permission mode types (UI-focused subset of SDK PermissionMode)
-export type PermissionMode = "default" | "plan" | "acceptEdits";
+// Note: "acceptEdits" in UI maps to "bypassPermissions" in SDK (skips all permission prompts)
+export type PermissionMode = "plan" | "acceptEdits";
 
 // SDK type integration utilities
 export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
@@ -131,8 +165,12 @@ export function toSDKPermissionMode(uiMode: PermissionMode): SDKPermissionMode {
 export function fromSDKPermissionMode(
   sdkMode: SDKPermissionMode,
 ): PermissionMode {
-  // Filter out bypassPermissions for UI
-  return sdkMode === "bypassPermissions" ? "default" : sdkMode;
+  // Map SDK modes to UI modes - only support plan and acceptEdits
+  if (sdkMode === "plan") {
+    return "plan";
+  }
+  // All other modes map to acceptEdits (which bypasses permissions)
+  return "acceptEdits";
 }
 
 // Chat state extensions for permission mode
@@ -178,4 +216,4 @@ export type {
   SDKResultMessage,
   SDKAssistantMessage,
   SDKUserMessage,
-} from "@anthropic-ai/claude-code";
+} from "@anthropic-ai/claude-agent-sdk";

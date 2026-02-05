@@ -1,4 +1,4 @@
-import type { SDKMessage } from "@anthropic-ai/claude-code";
+import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { generateToolPattern } from "./toolUtils";
 import { generateId } from "./id";
 
@@ -38,7 +38,7 @@ export type MockScenarioStep =
 // Generate realistic Claude system messages
 export function createSystemMessage(
   sessionId: string,
-): Extract<SDKMessage, { type: "system" }> {
+): Extract<SDKMessage, { type: "system"; subtype: "init" }> {
   return {
     type: "system",
     subtype: "init",
@@ -48,8 +48,13 @@ export function createSystemMessage(
     tools: ["Read", "Write", "Edit", "Bash"],
     mcp_servers: [],
     model: "claude-3-5-sonnet-20241022",
-    permissionMode: "default",
+    permissionMode: "acceptEdits",
     slash_commands: [],
+    claude_code_version: "1.0.0",
+    output_style: "default",
+    skills: [],
+    plugins: [],
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -72,6 +77,7 @@ export function createAssistantMessage(
     },
     parent_tool_use_id: null,
     session_id: sessionId,
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -107,6 +113,7 @@ export function createCombinedAssistantMessage(
     },
     parent_tool_use_id: null,
     session_id: sessionId,
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -115,7 +122,7 @@ export function createResultMessage(
   sessionId: string,
   inputTokens: number = 45,
   outputTokens: number = 120,
-): Extract<SDKMessage, { type: "result" }> {
+): Extract<SDKMessage, { type: "result"; subtype: "success" }> {
   return {
     type: "result",
     subtype: "success",
@@ -129,9 +136,12 @@ export function createResultMessage(
     usage: {
       input_tokens: inputTokens,
       output_tokens: outputTokens,
-      total_tokens: inputTokens + outputTokens,
+      cache_creation_input_tokens: 0,
+      cache_read_input_tokens: 0,
     },
     permission_denials: [],
+    modelUsage: {},
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -164,6 +174,7 @@ export function createExitPlanModeToolUse(
     },
     parent_tool_use_id: null,
     session_id: sessionId,
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -196,6 +207,7 @@ export function createExitPlanModeToolUseWithId(
     },
     parent_tool_use_id: null,
     session_id: sessionId,
+    uuid: crypto.randomUUID(),
   };
 }
 
@@ -250,6 +262,7 @@ export function createToolUseMessage(
     },
     parent_tool_use_id: null,
     session_id: sessionId,
+    uuid: crypto.randomUUID(),
   };
 }
 

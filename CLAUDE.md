@@ -2,6 +2,21 @@
 
 A web-based interface for the `claude` command line tool that provides streaming responses in a chat interface.
 
+## Service Configuration
+
+- **PM2 process**: Runs as `claude-code-webui` (cwd: `backend/`, script: `start.sh`, port 8080)
+- **PM2 config**: `ecosystem.config.cjs` at project root
+- **Cloudflare tunnel**: Exposed at `claude.ghost0x.com` via cloudflared (see `setup-tunnel.sh`). For tunnel management, reference the `cloudflare-tunnel` skill.
+- **ElevenLabs**: Not integrated.
+
+After completing changes and verifying the app compiles/runs, restart the service with `pm2 restart claude-code-webui`. If configuration changes were made that affect the service, update the PM2 configuration in `ecosystem.config.cjs` accordingly.
+
+For frontend changes, a rebuild is required before restarting:
+
+```bash
+cd frontend && npm run build && cd ../backend && node scripts/copy-frontend.js && pm2 restart claude-code-webui
+```
+
 ## Code Quality
 
 This project uses automated quality checks to ensure consistent code standards:
@@ -367,6 +382,33 @@ cd frontend && npm run dev      # Configures proxy to localhost:9000
    - Frontend: http://localhost:3000 (or custom port via `npm run dev -- --port XXXX`)
    - Backend API: http://localhost:8080 (or PORT from .env file)
 
+### Deploying Changes (PM2 Production)
+
+When the application is running via PM2 in production mode, **PM2 only restarts the backend process** - it does NOT rebuild the frontend. After making frontend changes:
+
+```bash
+# 1. Build the frontend (from project root or frontend/)
+cd frontend && npm run build
+
+# 2. Copy built files to backend's static directory
+cd ../backend && node scripts/copy-frontend.js
+
+# 3. Restart PM2 to serve updated files
+pm2 restart claude-code-webui
+```
+
+**One-liner for deploying frontend changes:**
+
+```bash
+cd frontend && npm run build && cd ../backend && node scripts/copy-frontend.js && pm2 restart claude-code-webui
+```
+
+**Important notes:**
+
+- Frontend changes require rebuild (`npm run build`) before they take effect
+- Backend-only changes just need `pm2 restart claude-code-webui`
+- Users may need to hard refresh (Cmd+Shift+R / Ctrl+Shift+R) to clear browser cache after frontend updates
+
 ### Project Structure
 
 ```
@@ -634,36 +676,36 @@ cd backend && deno task build
 - **Output**: GitHub Releases with downloadable binaries
 - **Features**: Frontend is automatically bundled into each binary
 
-## Claude Code Dependency Management
+## Claude Agent SDK Dependency Management
 
 ### Current Version Policy
 
 Both frontend and backend use **fixed versions** (without caret `^`) to ensure consistency:
 
-- **Frontend**: `frontend/package.json` - `"@anthropic-ai/claude-code": "1.0.61"`
+- **Frontend**: `frontend/package.json` - `"@anthropic-ai/claude-agent-sdk": "0.2.27"`
 - **Backend**:
-  - Deno: `backend/deno.json` imports - `"@anthropic-ai/claude-code": "npm:@anthropic-ai/claude-code@1.0.61"`
-  - Node.js: `backend/package.json` - `"@anthropic-ai/claude-code": "1.0.61"`
+  - Deno: `backend/deno.json` imports - `"@anthropic-ai/claude-agent-sdk": "npm:@anthropic-ai/claude-agent-sdk@0.2.27"`
+  - Node.js: `backend/package.json` - `"@anthropic-ai/claude-agent-sdk": "^0.2.27"`
 
 ### Version Update Procedure
 
-When updating to a new Claude Code version (e.g., 1.0.62):
+When updating to a new Claude Agent SDK version (e.g., 0.2.28):
 
 1. **Check current versions**:
 
    ```bash
    # Frontend
-   grep "@anthropic-ai/claude-code" frontend/package.json
+   grep "@anthropic-ai/claude-agent-sdk" frontend/package.json
 
    # Backend
-   grep "@anthropic-ai/claude-code" backend/deno.json
+   grep "@anthropic-ai/claude-agent-sdk" backend/deno.json
    ```
 
 2. **Update Frontend**:
 
    ```bash
    # Edit frontend/package.json - change version number
-   # "@anthropic-ai/claude-code": "1.0.XX"
+   # "@anthropic-ai/claude-agent-sdk": "0.2.XX"
    cd frontend && npm install
    ```
 
@@ -671,11 +713,11 @@ When updating to a new Claude Code version (e.g., 1.0.62):
 
    ```bash
    # For Deno: Edit backend/deno.json imports - change version number
-   # "@anthropic-ai/claude-code": "npm:@anthropic-ai/claude-code@1.0.XX"
+   # "@anthropic-ai/claude-agent-sdk": "npm:@anthropic-ai/claude-agent-sdk@0.2.XX"
    cd backend && rm deno.lock && deno cache cli/deno.ts
 
    # For Node.js: Edit backend/package.json - change version number
-   # "@anthropic-ai/claude-code": "1.0.XX"
+   # "@anthropic-ai/claude-agent-sdk": "^0.2.XX"
    cd backend && npm install
    ```
 
@@ -690,7 +732,7 @@ Ensure all environments use the same version:
 
 ```bash
 # Should show the same version number across all package configs
-grep "@anthropic-ai/claude-code" frontend/package.json backend/deno.json backend/package.json
+grep "@anthropic-ai/claude-agent-sdk" frontend/package.json backend/deno.json backend/package.json
 ```
 
 ## Commands for Claude

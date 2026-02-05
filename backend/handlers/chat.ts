@@ -2,10 +2,13 @@ import { Context } from "hono";
 import {
   AbortError,
   query,
-  type PermissionMode,
-} from "@anthropic-ai/claude-code";
+  type PermissionMode as SDKPermissionMode,
+} from "@anthropic-ai/claude-agent-sdk";
 import type { ChatRequest, StreamResponse } from "../../shared/types.ts";
 import { logger } from "../utils/logger.ts";
+
+// UI permission mode type (subset of SDK modes)
+type UIPermissionMode = "plan" | "acceptEdits";
 
 /**
  * Executes a Claude command and yields streaming responses
@@ -16,7 +19,7 @@ import { logger } from "../utils/logger.ts";
  * @param sessionId - Optional session ID for conversation continuity
  * @param allowedTools - Optional array of allowed tool names
  * @param workingDirectory - Optional working directory for Claude execution
- * @param permissionMode - Optional permission mode for Claude execution
+ * @param permissionMode - Optional permission mode for Claude execution (plan or acceptEdits)
  * @returns AsyncGenerator yielding StreamResponse objects
  */
 async function* executeClaudeCommand(
@@ -27,7 +30,7 @@ async function* executeClaudeCommand(
   sessionId?: string,
   allowedTools?: string[],
   workingDirectory?: string,
-  permissionMode?: PermissionMode,
+  permissionMode?: UIPermissionMode,
 ): AsyncGenerator<StreamResponse> {
   let abortController: AbortController;
 
@@ -43,6 +46,49 @@ async function* executeClaudeCommand(
     abortController = new AbortController();
     requestAbortControllers.set(requestId, abortController);
 
+    // Map UI permission mode to SDK permission mode
+    // "acceptEdits" -> "bypassPermissions" (skip all permission prompts)
+    // "plan" -> "plan" (planning mode)
+    const sdkPermissionMode: SDKPermissionMode =
+      permissionMode === "plan" ? "plan" : "bypassPermissions";
+
+    // Only pass allowedTools in plan mode or when explicitly provided and not in bypassPermissions mode
+    // In bypassPermissions mode, don't pass allowedTools so SDK can bypass all permissions
+    const shouldPassAllowedTools =
+      sdkPermissionMode !== "bypassPermissions" && allowedTools;
+
+    // canUseTool callback to auto-approve tools in bypass mode
+    const canUseTool =
+      sdkPermissionMode === "bypassPermissions"
+        ? async (
+            toolName: string,
+            input: Record<string, unknown>,
+          ): Promise<{
+            behavior: "allow";
+            updatedInput?: Record<string, unknown>;
+          }> => {
+            logger.chat.debug(
+              "canUseTool called for {toolName}, auto-approving",
+              { toolName },
+            );
+            return { behavior: "allow", updatedInput: input };
+          }
+        : undefined;
+
+    // System prompt appendix for web UI environment
+    const systemPromptAppend = `
+## Web UI Environment
+
+You are running in a web-based chat interface that does NOT support the AskUserQuestion tool.
+
+IMPORTANT: Do NOT use the AskUserQuestion tool. Instead, when you need to ask the user questions or gather preferences:
+1. Ask questions directly in plain text as part of your response
+2. Number your questions if there are multiple (e.g., "1. Which approach would you prefer?")
+3. Provide clear options when applicable
+4. Wait for the user to respond in their next message
+
+The user will see your questions and respond in a follow-up message.`;
+
     for await (const sdkMessage of query({
       prompt: processedMessage,
       options: {
@@ -50,10 +96,20 @@ async function* executeClaudeCommand(
         executable: "node" as const,
         executableArgs: [],
         pathToClaudeCodeExecutable: cliPath,
+        systemPrompt: {
+          type: "preset",
+          preset: "claude_code",
+          append: systemPromptAppend,
+        },
+        settingSources: ["user", "project", "local"],
+        permissionMode: sdkPermissionMode,
+        // Required when using bypassPermissions mode
+        allowDangerouslySkipPermissions:
+          sdkPermissionMode === "bypassPermissions",
         ...(sessionId ? { resume: sessionId } : {}),
-        ...(allowedTools ? { allowedTools } : {}),
+        ...(shouldPassAllowedTools ? { allowedTools } : {}),
         ...(workingDirectory ? { cwd: workingDirectory } : {}),
-        ...(permissionMode ? { permissionMode } : {}),
+        ...(canUseTool ? { canUseTool } : {}),
       },
     })) {
       // Debug logging of raw SDK messages with detailed content

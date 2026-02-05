@@ -1,20 +1,26 @@
 import { useEffect, useCallback, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeftIcon } from "@heroicons/react/24/outline";
-import type { ChatRequest, ChatMessage, ProjectInfo } from "../types";
+import type {
+  ChatRequest,
+  ChatMessage,
+  ProjectInfo,
+  UserQuestion,
+} from "../types";
 import { useTheme } from "../hooks/useTheme";
 import { useClaudeStreaming } from "../hooks/useClaudeStreaming";
 import { useChatState } from "../hooks/chat/useChatState";
 import { usePermissions } from "../hooks/chat/usePermissions";
 import { usePermissionMode } from "../hooks/chat/usePermissionMode";
 import { useAbortController } from "../hooks/chat/useAbortController";
+import { useUserQuestions } from "../hooks/chat/useUserQuestions";
 import { useAutoHistoryLoader } from "../hooks/useHistoryLoader";
 import { ThemeToggle } from "./chat/ThemeToggle";
 import { HistoryButton } from "./chat/HistoryButton";
 import { ChatInput } from "./chat/ChatInput";
 import { ChatMessages } from "./chat/ChatMessages";
 import { HistoryView } from "./HistoryView";
-import { getChatUrl, getProjectsUrl } from "../config/api";
+import { getChatUrl, getProjectsUrl, getAnswerUrl } from "../config/api";
 import { KEYBOARD_SHORTCUTS } from "../utils/constants";
 import { normalizeWindowsPath } from "../utils/pathUtils";
 import type { StreamingContext } from "../hooks/streaming/useMessageProcessor";
@@ -122,6 +128,13 @@ export function ChatPage() {
     onPermissionModeChange: setPermissionMode,
   });
 
+  // User question state management
+  const {
+    userQuestionRequest,
+    showUserQuestionRequest,
+    closeUserQuestionRequest,
+  } = useUserQuestions();
+
   const handlePermissionError = useCallback(
     (toolName: string, patterns: string[], toolUseId: string) => {
       // Check if this is an ExitPlanMode permission error
@@ -133,6 +146,14 @@ export function ChatPage() {
       }
     },
     [showPermissionRequest, showPlanModeRequest],
+  );
+
+  // Handler for user questions from AskUserQuestion tool
+  const handleUserQuestion = useCallback(
+    (toolUseId: string, questions: UserQuestion[]) => {
+      showUserQuestionRequest(toolUseId, questions);
+    },
+    [showUserQuestionRequest],
   );
 
   const sendMessage = useCallback(
@@ -161,17 +182,25 @@ export function ChatPage() {
       startRequest();
 
       try {
+        const chatRequest: ChatRequest = {
+          message: content,
+          requestId,
+          ...(currentSessionId ? { sessionId: currentSessionId } : {}),
+          allowedTools: tools || allowedTools,
+          ...(workingDirectory ? { workingDirectory } : {}),
+          permissionMode,
+        };
+
+        console.log(
+          "[ChatPage] Sending request with permissionMode:",
+          permissionMode,
+        );
+        console.log("[ChatPage] Full request:", chatRequest);
+
         const response = await fetch(getChatUrl(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: content,
-            requestId,
-            ...(currentSessionId ? { sessionId: currentSessionId } : {}),
-            allowedTools: tools || allowedTools,
-            ...(workingDirectory ? { workingDirectory } : {}),
-            permissionMode,
-          } as ChatRequest),
+          body: JSON.stringify(chatRequest),
         });
 
         if (!response.body) throw new Error("No response body");
@@ -182,6 +211,7 @@ export function ChatPage() {
         // Local state for this streaming session
         let localHasReceivedInit = false;
         let shouldAbort = false;
+        let buffer = ""; // Buffer for incomplete lines
 
         const streamingContext: StreamingContext = {
           currentAssistantMessage,
@@ -203,21 +233,36 @@ export function ChatPage() {
             shouldAbort = true;
             await createAbortHandler(requestId)();
           },
+          onUserQuestion: handleUserQuestion,
         };
 
         while (true) {
           const { done, value } = await reader.read();
           if (done || shouldAbort) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n").filter((line) => line.trim());
+          // Decode chunk and add to buffer
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          // Process complete lines (separated by newline)
+          const lines = buffer.split("\n");
+          // Keep the last (potentially incomplete) line in the buffer
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             if (shouldAbort) break;
-            processStreamLine(line, streamingContext);
+            const trimmedLine = line.trim();
+            if (trimmedLine) {
+              processStreamLine(trimmedLine, streamingContext);
+            }
           }
 
           if (shouldAbort) break;
+        }
+
+        // Process any remaining data in buffer
+        if (buffer.trim() && !shouldAbort) {
+          processStreamLine(buffer.trim(), streamingContext);
         }
       } catch (error) {
         console.error("Failed to send message:", error);
@@ -252,6 +297,7 @@ export function ChatPage() {
       resetRequestState,
       processStreamLine,
       handlePermissionError,
+      handleUserQuestion,
       createAbortHandler,
     ],
   );
@@ -327,7 +373,8 @@ export function ChatPage() {
   ]);
 
   const handlePlanAcceptDefault = useCallback(() => {
-    updatePermissionMode("default");
+    // Note: "default" mode removed - acceptEdits is now the default (bypasses permissions)
+    updatePermissionMode("acceptEdits");
     closePlanModeRequest();
     if (currentSessionId) {
       sendMessage("accept", allowedTools, true);
@@ -345,6 +392,47 @@ export function ChatPage() {
     closePlanModeRequest();
   }, [updatePermissionMode, closePlanModeRequest]);
 
+  // User question handlers
+  const handleUserQuestionSubmit = useCallback(
+    async (answers: Record<string, string | string[]>) => {
+      closeUserQuestionRequest();
+
+      if (!currentRequestId) {
+        console.error("No current request ID for user question answer");
+        return;
+      }
+
+      // Convert string[] answers to comma-separated strings for the backend
+      const formattedAnswers: Record<string, string> = {};
+      for (const [key, value] of Object.entries(answers)) {
+        formattedAnswers[key] = Array.isArray(value) ? value.join(", ") : value;
+      }
+
+      try {
+        // Send the answers to the backend via the answer endpoint
+        const response = await fetch(getAnswerUrl(currentRequestId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answers: formattedAnswers }),
+        });
+
+        if (!response.ok) {
+          console.error(
+            "Failed to submit user question answer:",
+            response.statusText,
+          );
+        }
+      } catch (error) {
+        console.error("Error submitting user question answer:", error);
+      }
+    },
+    [closeUserQuestionRequest, currentRequestId],
+  );
+
+  const handleUserQuestionDismiss = useCallback(() => {
+    closeUserQuestionRequest();
+  }, [closeUserQuestionRequest]);
+
   // Create permission data for inline permission interface
   const permissionData = permissionRequest
     ? {
@@ -361,6 +449,15 @@ export function ChatPage() {
         onAcceptWithEdits: handlePlanAcceptWithEdits,
         onAcceptDefault: handlePlanAcceptDefault,
         onKeepPlanning: handlePlanKeepPlanning,
+      }
+    : undefined;
+
+  // Create user question data for question interface
+  const userQuestionData = userQuestionRequest
+    ? {
+        questions: userQuestionRequest.questions,
+        onSubmit: handleUserQuestionSubmit,
+        onDismiss: handleUserQuestionDismiss,
       }
     : undefined;
 
@@ -564,6 +661,9 @@ export function ChatPage() {
               showPermissions={isPermissionMode}
               permissionData={permissionData}
               planPermissionData={planPermissionData}
+              userQuestionData={userQuestionData}
+              permissionMode={permissionMode}
+              onPermissionModeChange={setPermissionMode}
             />
           </>
         )}

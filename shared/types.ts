@@ -10,7 +10,7 @@ export interface ChatRequest {
   requestId: string;
   allowedTools?: string[];
   workingDirectory?: string;
-  permissionMode?: "default" | "plan" | "acceptEdits";
+  permissionMode?: "plan" | "acceptEdits";
 }
 
 export interface AbortRequest {

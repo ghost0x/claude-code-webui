@@ -327,8 +327,16 @@ export async function validateClaudeCli(
         logger.cli.info(`✅ Claude CLI found: ${detection.versionOutput}`);
       }
       return detection.scriptPath;
+    } else if (detection.versionOutput) {
+      // Native binary or installation where script path detection fails
+      // but Claude CLI is working - use the original path
+      logger.cli.info(
+        `✅ Claude CLI detected (native binary): ${detection.versionOutput}`,
+      );
+      logger.cli.info(`   Using binary path: ${claudePath}`);
+      return claudePath;
     } else {
-      // Exit with clear error when detection fails
+      // Exit with clear error when detection fails completely
       console.error("❌ Claude CLI script path detection failed");
       console.error(
         "   This can happen when the Claude CLI installation is incompatible with this application.",

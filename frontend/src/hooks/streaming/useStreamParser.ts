@@ -4,6 +4,7 @@ import type {
   SDKMessage,
   SystemMessage,
   AbortMessage,
+  UserQuestion,
 } from "../../types";
 import {
   isSystemMessage,
@@ -107,6 +108,18 @@ export function useStreamParser() {
           timestamp: Date.now(),
         };
         context.addMessage(planMessage);
+      } else if (contentItem.name === "AskUserQuestion") {
+        // Special handling for AskUserQuestion - create user question message
+        const input = contentItem.input as { questions: UserQuestion[] };
+        const userQuestionMessage = {
+          type: "user_question" as const,
+          toolUseId: contentItem.id || "",
+          questions: input.questions || [],
+          timestamp: Date.now(),
+        };
+        context.addMessage(userQuestionMessage);
+        // Trigger the UI to show the question panel
+        context.onUserQuestion?.(contentItem.id || "", input.questions || []);
       } else {
         const toolMessage = createToolMessage(contentItem);
         context.addMessage(toolMessage);
@@ -245,6 +258,11 @@ export function useStreamParser() {
         }
       } catch (parseError) {
         console.error("Failed to parse stream line:", parseError);
+        console.error(
+          "Problematic line (first 500 chars):",
+          line.substring(0, 500),
+        );
+        console.error("Line length:", line.length);
       }
     },
     [processClaudeData],
